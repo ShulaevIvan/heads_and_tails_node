@@ -6,83 +6,107 @@ const path = require('path');
 const { stdin: input, stdout: output } = require('node:process');
 const rl = readline.createInterface({ input, output });
 
-const globalGameObj = {
-    playStart: false,
-    headsOrTailsNum: 0,
-    userValue: undefined,
-    userFileName: undefined,
-    logDirName: 'log',
-    winner: undefined,
-    startGame: () => startGame(),
-    createDir: () => createDir(globalGameObj.logDirName),
-    createLogFile: (fileName) => createLogFile(fileName),
-    generateNum: (min, max) => numberGen(min=1, max=2),
-    checkWinner: () => checkWinner(),
-};
+class Game {
+    constructor() {
+        this.playStart = false;
+        this.headsOrTailsNum = 0;
+        this.userValue = undefined;
+        this.userFileName = undefined;
+        this.logDirName = 'log';
+        this.winner = undefined;
+        this.lastPathName = undefined;
+        this.round = 0;
+    };
 
-function createLogFile(fileName) {
-    const fullPath = path.join(__dirname, `${globalGameObj.logDirName}`, `${fileName}.txt`);
-    const content = `${globalGameObj.checkWinner()}`;
-    if (fs.existsSync(fullPath)) {
-        fs.appendFile(fullPath, `${content} \n`, function (err) {
-            if (err) throw err;
+    plusRound(value) {
+        this.round = Number(this.round) + Number(value);
+    }
+
+    startGame() {
+        rl.question('Heads or tails? (1 or 2): ', (answer) => {
+            if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 2) {
+                this.playStart = true;
+                this.userValue = Number(answer);
+                this.headsOrTailsNum = this.numberGen();
+                rl.question('select the file name: ', (answer) => {
+                    const logPath = this.createLogFile(answer);
+                    this.lastPathName = logPath;
+                    console.log(`log file created at ${logPath}`);
+                    console.log(`${this.round} end, ${this.winner} won!`);
+                    rl.question('play again ? 1 - yes, 2 - exit: ', (answer) => {
+                        if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 1) {
+                            return this.startGame();
+                        }
+                        return rl.close();
+                    })
+                })
+                return;
+            }
+            console.log('input err, the game is restart... ');
+            return this.startGame();
         });
+    }
+
+    createLogFile(fileName) {
+        const fullPath = path.join(__dirname, `${this.logDirName}`, `${fileName}.json`);
+        if (fs.existsSync(fullPath)) {
+            fs.readFile(fullPath, (err, data) => { 
+                if (err) throw err;
+                const jsonData = JSON.parse(data);
+                const logObj = this.checkWinner();
+                const newData = [...jsonData, logObj];
+                const writeStream = fs.createWriteStream(`${fullPath}`);
+                writeStream.write(JSON.stringify(newData), 'UTF8');
+                writeStream.end();
+            }); 
+            return fullPath;
+        }
+        this.createDir();
+        const writeStream = fs.createWriteStream(`${fullPath}`);
+        const content = this.checkWinner();
+        const data = [];
+        data.push(content);
+        writeStream.write(JSON.stringify(data), 'UTF8');
+        writeStream.end();
+
         return fullPath;
     }
-    globalGameObj.createDir();
-    const writeStream = fs.createWriteStream(`${fullPath}`);
-    writeStream.write(`${content} \n`, 'UTF8');
-    writeStream.end();
 
-    return fullPath;
-};
-
-function startGame() {
-    rl.question('Heads or tails? (1 or 2): ', (answer) => {
-        if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 2) {
-            globalGameObj.playStart = true;
-            globalGameObj.userValue = answer;
-            globalGameObj.headsOrTailsNum = globalGameObj.generateNum();
-            rl.question('select the file name: ', (answer) => {
-                const logPath = createLogFile(answer);
-                console.log(`log file created at ${logPath}`);
-                console.log(globalGameObj.winner);
-                rl.question('play again ? 1 - yes, 2 - exit: ', (answer) => {
-                    if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 1) {
-                        return globalGameObj.startGame();
-                    }
-                    return rl.close();
-                })
-            })
-            return;
-        }
-        console.log('input err, the game is restart... ');
-        return globalGameObj.startGame();
-    });
-};
-
-function checkWinner(value) {
-    const mainText = globalGameObj.headsOrTailsNum === 1 ? "heads" : "tails";
-    const conent = `generate ${mainText} (You: ${globalGameObj.userValue} | GenNum: ${globalGameObj.headsOrTailsNum})`;
-    globalGameObj.winner = Number(globalGameObj.userValue) === globalGameObj.headsOrTailsNum ? 'Player Win' : 'Player Lose';
-    return Number(globalGameObj.userValue) === globalGameObj.headsOrTailsNum ? 
-        `Player win ${conent}` : `Player lose ${conent}`;
-};
-
-function createDir(dirName) {
-    const folderPath = path.join(__dirname, `${dirName}`);
-    if (!fs.existsSync(folderPath)) {
-        fs.mkdir(path.join(__dirname, `${dirName}`),(err) => {
-            if (err) {
-                return console.error(err);
-            }
-        });
+    checkWinner() {
+        const headOrTailsStringName = this.headsOrTailsNum === 1 ? "Heads" : "Tails";
+        console.log(this.headsOrTailsNum)
+        const contentJson = {
+            round: this.round,
+            generateValue: this.headsOrTailsNum,
+            generateName: this.headsOrTailsNum === 1 ? "Heads" : "Tails",
+            winner: this.winner,
+            text: `generate ${headOrTailsStringName} (You: ${this.userValue} | Comp: ${this.headsOrTailsNum})`,
+        };
+    
+        return contentJson;
     }
-};
 
-function numberGen(min, max) {
-    const rndNum = Math.round(Math.random() * (max - min) + min);
-    return rndNum;
-};
+    createDir(dirName) {
+        const folderPath = path.join(__dirname, `${dirName}`);
+        if (!fs.existsSync(folderPath)) {
+            fs.mkdir(path.join(__dirname, `${dirName}`),(err) => {
+                if (err) {
+                    return console.error(err);
+                }
+            });
+        }
+    }
 
-module.exports = globalGameObj;
+    numberGen(min=1, max=2) {
+        const rndNum = Math.round(Math.random() * (max - min) + min);
+        this.headsOrTailsNum = rndNum;
+        this.winner = this.headsOrTailsNum === this.userValue ? 'Player': 'Comp';
+        this.plusRound(1);
+
+        return rndNum;
+    }
+}
+
+const game = new Game();
+
+module.exports = game;

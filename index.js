@@ -2,6 +2,7 @@
 'use-strict'
 
 const gameObj = require('./gameFunctions');
+const analyzer = require('./analyzer');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 
@@ -11,6 +12,11 @@ yargs(hideBin(process.argv))
     describe: 'starting game',
     builder: (yargs) => {
         return (yargs
+            .option('analyze', {
+                alias: 'a',
+                describe: 'default analyzer',
+                type: 'boolean',
+            })
             .option('count', {
                 alias: 'c',
                 describe: 'total number of matches',
@@ -29,6 +35,12 @@ yargs(hideBin(process.argv))
         )
     },
     handler: (argv) => {
+        const analyze = argv.a;
+        if (analyze) {
+            const testPath = '/home/adminpy/Desktop/heads_and_tails/log/test.json';
+            analyzer(testPath);
+            return;
+        }
         gameObj.startGame();
     }
 }).parse();
