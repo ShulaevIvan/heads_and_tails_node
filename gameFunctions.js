@@ -4,46 +4,51 @@ const readline = require('node:readline');
 const fs = require('fs');
 const path = require('path');
 const { stdin: input, stdout: output } = require('node:process');
-const rl = readline.createInterface({ input, output });
 
 class Game {
-    constructor() {
+    constructor(logDir) {
+        this.rl = readline.createInterface({ input, output });
         this.playStart = false;
         this.headsOrTailsNum = 0;
         this.userValue = undefined;
         this.userFileName = undefined;
-        this.logDirName = 'log';
+        this.logDirName = logDir;
         this.winner = undefined;
-        this.lastPathName = undefined;
         this.round = 0;
     };
 
     plusRound(value) {
         this.round = Number(this.round) + Number(value);
-    }
+    };
 
     startGame() {
-        rl.question('Heads or tails? (1 or 2): ', (answer) => {
+        this.rl.question('Heads or tails? (1 or 2): ', (answer) => {
             if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 2) {
                 this.playStart = true;
                 this.userValue = Number(answer);
                 this.headsOrTailsNum = this.numberGen();
-                rl.question('select the file name: ', (answer) => {
+                this.rl.question('select the file name: ', (answer) => {
                     const logPath = this.createLogFile(answer);
-                    this.lastPathName = logPath;
                     console.log(`log file created at ${logPath}`);
-                    console.log(`${this.round} end, ${this.winner} won!`);
-                    rl.question('play again ? 1 - yes, 2 - exit: ', (answer) => {
+                    console.log(`round ${this.round} end, ${this.winner} won!`);
+                    this.rl.question('play again ? 1 - yes, 2 - exit: ', (answer) => {
                         if (!isNaN(answer) && Number(answer) > 0 && Number(answer) <= 1) {
                             return this.startGame();
                         }
-                        return rl.close();
+                        return this.rl.close();
                     })
                 })
                 return;
             }
             console.log('input err, the game is restart... ');
             return this.startGame();
+        });
+    }
+    
+    restartGame() {
+        return this.rl.question('restart game ? 1 - yes 2 - exit : ', (ans) => {
+            if (Number(ans) === 1) return this.startGame();
+            return this.rl.close();
         });
     }
 
@@ -61,7 +66,7 @@ class Game {
             }); 
             return fullPath;
         }
-        this.createDir();
+        this.createDir(this.logDirName);
         const writeStream = fs.createWriteStream(`${fullPath}`);
         const content = this.checkWinner();
         const data = [];
@@ -87,7 +92,7 @@ class Game {
     }
 
     createDir(dirName) {
-        const folderPath = path.join(__dirname, `${dirName}`);
+        const folderPath = path.join(__dirname, `${dirName ? dirName : this.logDirName}`);
         if (!fs.existsSync(folderPath)) {
             fs.mkdir(path.join(__dirname, `${dirName}`),(err) => {
                 if (err) {
@@ -105,8 +110,8 @@ class Game {
 
         return rndNum;
     }
-}
+};
 
-const game = new Game();
+const game = new Game('log');
 
 module.exports = game;
